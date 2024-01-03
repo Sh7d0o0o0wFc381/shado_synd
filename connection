@@ -1,0 +1,86 @@
+package main
+
+import (
+	"fmt"
+	"net"
+	"time"
+)
+
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	// Read data from client
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		fmt.Println("Error reading:", err)
+		return
+	}
+
+	// Print received message from client
+	fmt.Printf("Received message from client: %s\n", string(buffer[:n]))
+
+	// Send response back to client
+	response := []byte("Message received by server")
+	_, err = conn.Write(response)
+	if err != nil {
+		fmt.Println("Error writing:", err)
+		return
+	}
+}
+
+func main() {
+	// Start TCP server
+	go func() {
+		ln, err := net.Listen("tcp", ":8080")
+		if err != nil {
+			fmt.Println("Error listening:", err)
+			return
+		}
+		defer ln.Close()
+
+		fmt.Println("TCP server started. Listening on port 8080...")
+
+		for {
+			// Accept incoming connections
+			conn, err := ln.Accept()
+			if err != nil {
+				fmt.Println("Error accepting:", err)
+				continue
+			}
+
+			// Handle each incoming connection in a new goroutine
+			go handleConnection(conn)
+		}
+	}()
+
+	// Sleep to ensure server starts before client attempts to connect
+	time.Sleep(1 * time.Second)
+
+	// Connect to TCP server (client part)
+	conn, err := net.Dial("tcp", "localhost:8080")
+	if err != nil {
+		fmt.Println("Error connecting:", err)
+		return
+	}
+	defer conn.Close()
+
+	// Send data to server
+	message := []byte("Hello from client")
+	_, err = conn.Write(message)
+	if err != nil {
+		fmt.Println("Error writing:", err)
+		return
+	}
+
+	// Read response from server
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		fmt.Println("Error reading:", err)
+		return
+	}
+
+	// Print server's response
+	fmt.Printf("Server response: %s\n", string(buffer[:n]))
+}
